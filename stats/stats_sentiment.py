@@ -140,3 +140,4 @@ def run_stats(input_filename, output_filename):
 
     save_stats_to_xlsx(percentages_speech, percentages_sentiment_P1, percentages_sentiment_P2, output_filename)
 
+run_stats("emotion_results_p2_conv.json", "stats_p2_conv.xlsx")

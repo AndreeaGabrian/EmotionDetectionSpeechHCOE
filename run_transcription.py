@@ -8,6 +8,7 @@ model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-base.en"
 input_folder_path = "p2_conv"
 output_folder_path = "transcription_results"
 
-process_trim_files(input_folder_path, processor, model, output_folder_path, "p2_conv")
+model_name = "openai/whisper-base.en"
+process_trim_files(input_folder_path, processor, model, output_folder_path, "p2_conv", model_name)
 
 

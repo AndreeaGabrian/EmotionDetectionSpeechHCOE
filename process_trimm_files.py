@@ -14,7 +14,7 @@ def sorted_alphanumeric(data):
     return sorted(data, key=alphanum_key)
 
 
-def process_trim_files(input_folder_path, processor, model, output_folder_path, audio_name):
+def process_trim_files(input_folder_path, processor, model, output_folder_path, audio_name, model_name):
     # Get a sorted list of files in the folder
     files = os.listdir(input_folder_path)
     file_names = sorted_alphanumeric(files)
@@ -51,6 +51,15 @@ def process_trim_files(input_folder_path, processor, model, output_folder_path, 
             # Create a list to store information for each chunk
             chunk_info_list = []
 
+            # Extract start time and duration from the file name
+            start_time = float(file_name.split("start_")[1].split("-")[0])
+            duration = float(file_name.split("duration_")[1].split("-")[0])
+
+            # Calculate end time
+            end_time = start_time + duration
+            transcription_total = ""
+            exec_time_file = 0
+
             for i in range(0, waveform.size(1), chunk_size_samples):
                 chunk = waveform[:, i:i + chunk_size_samples]
 
@@ -61,51 +70,47 @@ def process_trim_files(input_folder_path, processor, model, output_folder_path, 
                 transcription = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
                 exec_time = time.time() - start_exec_time
                 exec_times_list.append(exec_time)
+                transcription_total += transcription + " "
+                exec_time_file += exec_time
 
-                # Extract start time and duration from the file name
-                start_time = float(file_name.split("start_")[1].split("-")[0])
-                duration = float(file_name.split("duration_")[1].split("-")[0])
-
-                # Calculate end time
-                end_time = start_time + duration
-
-                # Append information to the list
-                chunk_info_list.append({
-                    "start_time": start_time,
-                    "end_time": end_time,
-                    "speaker": speaker_info,
-                    "transcription": transcription,
-                    "execution_time": exec_time
-                })
+            # Append information to the list
+            chunk_info_list.append({
+                "start_time": start_time,
+                "end_time": end_time,
+                "speaker": speaker_info,
+                "transcription": transcription_total,
+                "execution_time": exec_time_file
+            })
 
             # Add the list of chunk information to the dictionary
             transcriptions_dict[file_name] = chunk_info_list
 
-    for file_name, chunk_info_list in transcriptions_dict.items():
-        for chunk_info in chunk_info_list:
-            if chunk_info["speaker"] == current_speaker:
-                # Merge consecutive entries with the same speaker
-                current_entry["end_time"] = chunk_info["end_time"]
-                current_entry["transcription"] += " " + chunk_info["transcription"]
-                current_entry["execution_time"] += chunk_info["execution_time"]
-            else:
-                # Start a new entry for a different speaker
-                current_speaker = chunk_info["speaker"]
-                current_entry = {
-                    "start_time": chunk_info["start_time"],
-                    "end_time": chunk_info["end_time"],
-                    "speaker": current_speaker,
-                    "transcription": chunk_info["transcription"],
-                    "execution_time": chunk_info["execution_time"]
-                }
-                consolidated_transcriptions.append(current_entry)
+    # for file_name, chunk_info_list in transcriptions_dict.items():
+    #     for chunk_info in chunk_info_list:
+    #         if chunk_info["speaker"] == current_speaker:
+    #             # Merge consecutive entries with the same speaker
+    #             current_entry["end_time"] = chunk_info["end_time"]
+    #             current_entry["transcription"] += " " + chunk_info["transcription"]
+    #             current_entry["execution_time"] += chunk_info["execution_time"]
+    #         else:
+    #             # Start a new entry for a different speaker
+    #             current_speaker = chunk_info["speaker"]
+    #             current_entry = {
+    #                 "start_time": chunk_info["start_time"],
+    #                 "end_time": chunk_info["end_time"],
+    #                 "speaker": current_speaker,
+    #                 "transcription_model": model_name,
+    #                 "transcription": chunk_info["transcription"],
+    #                 "execution_time": chunk_info["execution_time"]
+    #             }
+    #             consolidated_transcriptions.append(current_entry)
 
     # Output JSON file
-    output_json_path = f"{output_folder_path}/transcription_{audio_name}_results_whisper_BASE"
+    output_json_path = f"{output_folder_path}/transcription_{audio_name}_results_whisper_BASE_new"
     # Save the transcriptions' dictionary to a JSON file
     with open(f"{output_json_path}.json", "w") as json_file:
-        json.dump(consolidated_transcriptions, json_file, indent=2)
-    output_txt = f"{output_folder_path}/execution_time_transcription_{audio_name}_results_whisper_BASE.txt"
+        json.dump(list(transcriptions_dict.values()), json_file, indent=2)
+    output_txt = f"{output_folder_path}/execution_time_transcription_{audio_name}_results_whisper_BASE_new.txt"
     with open(output_txt, "w") as f:
         f.write(f"Total execution time for transcription: {sum(exec_times_list)}")
     print(f"Transcriptions saved to {output_json_path}")
